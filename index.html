@@ -13,6 +13,7 @@
             --accent-green: #48bb78;   
             --accent-blue: #4299e1;
             --accent-yellow: #ecc94b; 
+            --accent-red: #e53e3e; /* For Aggressive Mode */
             --eye-white: #f7fafc;
             --pupil-color: #2d3748;
             --warning-color: #ed8936;
@@ -45,7 +46,7 @@
             top: 20px;
             right: 20px;
             display: flex;
-            gap: 15px;
+            gap: 12px;
             z-index: 100;
         }
 
@@ -62,11 +63,26 @@
             justify-content: center;
             user-select: none;
             color: var(--text-color);
+            position: relative;
         }
 
         .icon-btn:active {
             background: rgba(255,255,255,0.3);
             transform: scale(0.95);
+        }
+
+        /* Aggressive Mode Active Style */
+        .icon-btn.aggressive-active {
+            background-color: var(--accent-red);
+            color: white;
+            box-shadow: 0 0 15px var(--accent-red);
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
         }
 
         /* --- HEADER --- */
@@ -235,7 +251,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* --- BREAK MODE STYLES --- */
+        /* --- MODES --- */
         body.break-mode {
             --accent-green: var(--accent-blue);
         }
@@ -255,6 +271,7 @@
 <body>
 
     <div class="top-controls">
+        <button class="icon-btn" id="aggroBtn" title="Aggressive Mode (Shout until stopped)">😌</button>
         <button class="icon-btn" id="notifBtn" title="Enable Notifications">🔔</button>
         <button class="icon-btn" id="soundBtn" title="Toggle Sound">🔊</button>
     </div>
@@ -298,6 +315,7 @@
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const resetBtn = document.getElementById('resetBtn');
+        const aggroBtn = document.getElementById('aggroBtn');
         const timeDisplay = document.getElementById('timeDisplay');
         const statusText = document.getElementById('statusText');
         const progressRing = document.getElementById('progressRing');
@@ -316,11 +334,14 @@
         let isRunning = false;
         let isPaused = false;
         let isSoundOn = true;
+        let isAggressive = false; // Default OFF
+        let isShouting = false;   // Internal state for looping sound
+        let lastShoutTime = 0;    // For shout throttling
         
         let endTime = 0;
         let remainingTime = WORK_TIME;
 
-        // --- AUDIO CONTEXT (Mobile Optimized) ---
+        // --- AUDIO CONTEXT ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
 
@@ -343,8 +364,9 @@
             return "";
         }
 
-        // --- PREFERENCES & RESTORE ---
+        // --- PREFERENCES ---
         function loadPreferences() {
+            // Sound
             let soundPref = getCookie("soundPref");
             if (soundPref === "mute") {
                 isSoundOn = false;
@@ -354,6 +376,19 @@
                 soundBtn.textContent = "🔊";
             }
 
+            // Aggressive Mode
+            let aggroPref = getCookie("aggroPref");
+            if (aggroPref === "on") {
+                isAggressive = true;
+                aggroBtn.textContent = "🤬";
+                aggroBtn.classList.add('aggressive-active');
+            } else {
+                isAggressive = false;
+                aggroBtn.textContent = "😌";
+                aggroBtn.classList.remove('aggressive-active');
+            }
+
+            // Restore Timer
             const savedState = getCookie("eye_state");
             const savedMode = getCookie("eye_mode");
             
@@ -376,6 +411,7 @@
                         remainingTime = Math.ceil((endTime - now) / 1000);
                         startTimer(true);
                     } else {
+                        // Timer expired while closed
                         switchMode(false); 
                         statusText.textContent = "Timer finished while away.";
                         clearTimerState();
@@ -397,13 +433,34 @@
             }
         }
 
+        // --- AGGRESSIVE MODE LOGIC ---
+        function toggleAggressive() {
+            isAggressive = !isAggressive;
+            if (isAggressive) {
+                aggroBtn.textContent = "🤬";
+                aggroBtn.classList.add('aggressive-active');
+                setCookie("aggroPref", "on", 365);
+                // Beep to confirm
+                if (isSoundOn) playTone('break'); 
+            } else {
+                aggroBtn.textContent = "😌";
+                aggroBtn.classList.remove('aggressive-active');
+                setCookie("aggroPref", "off", 365);
+                isShouting = false; // Stop immediately if disabled
+            }
+        }
+
+        function stopShouting() {
+            if (isShouting) {
+                isShouting = false;
+                statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
+            }
+        }
+
         // --- AUDIO ENGINE ---
         function toggleSound() {
             isSoundOn = !isSoundOn;
-            
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
             if (isSoundOn) {
                 soundBtn.textContent = "🔊";
@@ -412,12 +469,12 @@
             } else {
                 soundBtn.textContent = "🔇";
                 setCookie("soundPref", "mute", 365);
+                isShouting = false; // Can't shout if muted
             }
         }
 
         function playChime(type) {
             if (!isSoundOn) return;
-
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().then(() => playTone(type));
             } else {
@@ -498,7 +555,7 @@
             });
         }
 
-        // --- STATE MANAGEMENT ---
+        // --- STATE & TIMER LOGIC ---
         function saveTimerState() {
             let state = "stopped";
             if (isRunning) state = "running";
@@ -520,14 +577,16 @@
             setCookie("eye_remaining", "", -1);
         }
 
-        // --- CORE LOGIC ---
         function switchMode(autoStart = true) {
+            // Determine type of sound needed
+            const nextModeIsBreak = isWorking; 
+            const chimeType = nextModeIsBreak ? 'break' : 'work';
+
             if (isWorking) {
                 isWorking = false;
                 remainingTime = BREAK_TIME;
                 statusText.textContent = "Take a break! Look 20 feet away.";
                 body.classList.add('break-mode'); 
-                if(autoStart) playChime('break');
                 
                 if (autoStart && Notification.permission === "granted") {
                     new Notification("Eye20-20-20", { body: "Time to rest your eyes!" });
@@ -537,7 +596,6 @@
                 remainingTime = WORK_TIME;
                 statusText.textContent = "Break ended. Focus time.";
                 body.classList.remove('break-mode'); 
-                if(autoStart) playChime('work');
                 
                 if (autoStart && Notification.permission === "granted") {
                     new Notification("Eye20-20-20", { body: "Break ended. Back to work!" });
@@ -545,6 +603,17 @@
             }
             
             if (autoStart) {
+                // If Aggressive, start Loop logic, otherwise play once
+                if (isAggressive && isSoundOn) {
+                    isShouting = true;
+                    // Play immediately first time
+                    playChime(chimeType);
+                    lastShoutTime = Date.now();
+                    statusText.textContent += " (PRESS BUTTON TO STOP ALARM!)";
+                } else {
+                    playChime(chimeType);
+                }
+
                 endTime = Date.now() + (remainingTime * 1000);
                 saveTimerState(); 
                 updateDisplay(remainingTime);
@@ -558,6 +627,15 @@
             const now = Date.now();
             const delta = endTime - now;
             remainingTime = Math.ceil(delta / 1000);
+
+            // -- SHOUTING LOGIC (Aggressive Mode) --
+            // We check this in the loop so it persists even in background
+            if (isShouting && isSoundOn && isAggressive) {
+                if (now - lastShoutTime > 2500) { // Shout every 2.5 seconds
+                    playChime(isWorking ? 'work' : 'break'); // Repeat current mode sound
+                    lastShoutTime = now;
+                }
+            }
 
             if (remainingTime <= 0) {
                 switchMode(true);
@@ -576,13 +654,14 @@
 
                 isRunning = true;
                 isPaused = false;
+                stopShouting(); // Stop any previous shouting on interaction
                 
                 startBtn.style.display = 'none';
                 pauseBtn.style.display = 'inline-block';
                 pauseBtn.textContent = "Pause";
                 resetBtn.style.display = 'inline-block';
                 
-                if(!restoring && !isPaused) {
+                if(!restoring) {
                     statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
                 }
                 
@@ -593,9 +672,11 @@
         }
 
         function togglePause() {
+            // User Interaction stops shouting
+            stopShouting();
+
             if (isPaused) {
                 startTimer(true);
-                statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
             } else {
                 clearInterval(timerInterval);
                 isRunning = false;
@@ -614,6 +695,7 @@
         }
 
         function resetTimer() {
+            stopShouting(); // User Interaction stops shouting
             clearInterval(timerInterval);
             clearTimerState();
             
@@ -642,6 +724,7 @@
         resetBtn.addEventListener('click', resetTimer);
         soundBtn.addEventListener('click', toggleSound);
         notifBtn.addEventListener('click', requestNotification);
+        aggroBtn.addEventListener('click', toggleAggressive);
 
         // --- INIT ---
         updateDisplay(remainingTime);
