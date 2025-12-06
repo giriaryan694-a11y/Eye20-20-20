@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="author" content="Aryan Giri">
-    <title>Eye20-20-20 | Smooth Performance</title>
+    <title>Eye20-20-20 | Eye Health Tracker</title>
     <style>
         /* --- CSS VARIABLES --- */
         :root {
@@ -24,6 +24,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* --- SCROLL LOCKING & LAYOUT --- */
         body {
             margin: 0;
             padding: 0;
@@ -34,9 +35,13 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            text-align: center;
-            overflow: hidden;
+            
+            /* LOCK SCROLLING */
+            width: 100%;
+            height: 100vh;
+            overflow: hidden; 
+            position: fixed; /* Nuclear option to stop iOS rubber-banding */
+            touch-action: none; /* Disables browser gestures like pull-to-refresh */
         }
 
         /* --- TOP CONTROLS --- */
@@ -76,7 +81,7 @@
             color: white;
             box-shadow: 0 0 15px var(--accent-red);
             animation: pulse-red 2s infinite;
-            will-change: box-shadow; /* Performance Boost */
+            will-change: box-shadow;
         }
 
         @keyframes pulse-red {
@@ -91,19 +96,20 @@
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
             color: var(--accent-green);
+            margin-top: -40px; /* Slight visual adjustment */
         }
 
         .subtitle {
             font-size: 0.9rem;
             opacity: 0.7;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
-        /* --- EYE ANIMATION (Optimized) --- */
+        /* --- EYE ANIMATION --- */
         .face-container {
             display: flex;
             gap: 20px;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         .eye {
@@ -114,7 +120,6 @@
             position: relative;
             overflow: hidden;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
-            /* Hardware Acceleration */
             transform: translateZ(0); 
             will-change: transform;
             animation: blink 4s infinite;
@@ -136,13 +141,12 @@
             50% { transform: scaleY(0.1); }
         }
 
-        /* --- TIMER (Optimized) --- */
+        /* --- TIMER --- */
         .timer-container {
             position: relative;
             width: 260px;
             height: 260px;
-            margin-bottom: 2rem;
-            /* Isolate layer for performance */
+            margin-bottom: 1.5rem;
             contain: layout style paint; 
         }
 
@@ -167,7 +171,7 @@
             stroke-dasharray: 785; 
             stroke-dashoffset: 0;
             transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
-            will-change: stroke-dashoffset; /* Hint to browser */
+            will-change: stroke-dashoffset; 
         }
 
         .time-display {
@@ -192,7 +196,7 @@
 
         /* --- BUTTONS --- */
         .btn-container {
-            margin-top: 10px;
+            margin-top: 5px;
             display: flex;
             gap: 15px;
             justify-content: center;
@@ -237,27 +241,32 @@
             display: none;
         }
 
-        /* --- FOOTER & WARNING --- */
+        /* --- WARNING --- */
         .warning-msg {
-            margin-top: 25px;
+            margin-top: 20px;
             font-size: 0.8rem;
             color: var(--warning-color);
             background: rgba(237, 137, 54, 0.1);
-            padding: 12px 20px;
+            padding: 10px 20px;
             border-radius: 8px;
             width: 90%;
             max-width: 400px;
             line-height: 1.4;
         }
 
-        .author {
-            margin-top: 2rem;
-            font-size: 0.9rem;
-            opacity: 0.7;
-            padding-bottom: 20px;
-            font-weight: 600;
+        /* --- FIXED FOOTER --- */
+        .footer-credit {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 0.85rem;
+            opacity: 0.6;
+            font-weight: 500;
             letter-spacing: 0.5px;
             color: var(--text-color);
+            pointer-events: none; /* Clicks pass through */
         }
 
         /* --- MODES --- */
@@ -310,10 +319,10 @@
     </div>
 
     <div class="warning-msg">
-        ⚠️ <strong>Note:</strong> Please keep this tab active. Your timer is saved if you refresh.
+        ⚠️ <strong>Note:</strong> Please keep this tab active.
     </div>
 
-    <div class="author">Made by Aryan Giri</div>
+    <div class="footer-credit">Made by Aryan Giri</div>
 
     <script>
         // --- CONSTANTS ---
@@ -350,7 +359,6 @@
         let endTime = 0;
         let remainingTime = WORK_TIME;
         
-        // Optimization: Store last rendered string to avoid DOM spam
         let lastRenderedTimeStr = ""; 
 
         // --- AUDIO CONTEXT ---
@@ -536,7 +544,6 @@
         }
 
         function updateDisplay(currentSecs) {
-            // OPTIMIZATION: Only update DOM if text changed
             const newTimeStr = formatTime(currentSecs);
             if (newTimeStr !== lastRenderedTimeStr) {
                 timeDisplay.textContent = newTimeStr;
@@ -634,7 +641,6 @@
             const delta = endTime - now;
             remainingTime = Math.ceil(delta / 1000);
 
-            // Shouting Check
             if (isShouting && isSoundOn && isAggressive) {
                 if (now - lastShoutTime > 2500) { 
                     playChime(isWorking ? 'work' : 'break'); 
@@ -673,8 +679,6 @@
                 endTime = Date.now() + (remainingTime * 1000);
                 saveTimerState();
                 
-                // PERFORMANCE FIX: 200ms interval is smoother for mobile than 100ms 
-                // while still being responsive enough for the progress ring
                 timerInterval = setInterval(tick, 200);
             }
         }
