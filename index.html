@@ -35,7 +35,7 @@
             text-align: center;
         }
 
-        /* --- TOP CONTROLS (Sound & Notify) --- */
+        /* --- TOP CONTROLS --- */
         .top-controls {
             position: absolute;
             top: 20px;
@@ -140,7 +140,7 @@
             stroke: var(--accent-green);
             stroke-dasharray: 754; 
             stroke-dashoffset: 0;
-            transition: stroke-dashoffset 0.1s linear, stroke 0.5s ease; /* Smoother transition for delta timer */
+            transition: stroke-dashoffset 0.1s linear, stroke 0.5s ease;
         }
 
         .time-display {
@@ -158,6 +158,7 @@
             font-weight: 300;
             color: var(--accent-green);
             min-height: 1.5em;
+            padding: 0 20px;
         }
 
         /* --- BUTTONS --- */
@@ -256,7 +257,7 @@
     </div>
 
     <div class="warning-msg">
-        ⚠️ <strong>Note:</strong> Please keep this tab active. If you minimize or close it, the browser may pause the timer to save battery.
+        ⚠️ <strong>Note:</strong> Please keep this tab active. Your timer is saved if you refresh.
     </div>
 
     <div class="author">Made by Aryan Giri</div>
@@ -281,20 +282,18 @@
         const circumference = 2 * Math.PI * radius;
         progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
 
-        // --- VARIABLES ---
+        // --- STATE VARIABLES ---
         let isWorking = true;
         let timerInterval = null;
         let isRunning = false;
         let isSoundOn = true;
-        
-        // Accurate Timer Variables
         let endTime = 0;
         let remainingTime = WORK_TIME;
 
         // --- AUDIO CONTEXT ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // --- COOKIE FUNCTIONS ---
+        // --- COOKIE HELPERS ---
         function setCookie(cname, cvalue, exdays) {
             const d = new Date();
             d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
@@ -313,15 +312,66 @@
             return "";
         }
 
-        // --- PREFERENCE & NOTIFICATION LOGIC ---
-        function loadSoundPreference() {
-            let pref = getCookie("soundPref");
-            if (pref === "mute") {
+        // --- STATE MANAGEMENT (COOKIES) ---
+        function saveTimerState() {
+            if (isRunning) {
+                // Save the absolute time when timer ends
+                setCookie("eye_endTime", endTime, 1);
+                setCookie("eye_mode", isWorking ? "work" : "break", 1);
+                setCookie("eye_running", "true", 1);
+            } else {
+                setCookie("eye_running", "false", 1);
+            }
+        }
+
+        function clearTimerState() {
+            setCookie("eye_running", "false", 1);
+            setCookie("eye_endTime", "", -1);
+        }
+
+        // --- PREFERENCES & INIT ---
+        function loadPreferences() {
+            // Sound
+            let soundPref = getCookie("soundPref");
+            if (soundPref === "mute") {
                 isSoundOn = false;
                 soundBtn.textContent = "🔇";
             } else {
                 isSoundOn = true;
                 soundBtn.textContent = "🔊";
+            }
+
+            // Restore Timer Logic
+            const savedRunning = getCookie("eye_running");
+            if (savedRunning === "true") {
+                const savedEndTime = parseInt(getCookie("eye_endTime"));
+                const savedMode = getCookie("eye_mode");
+                
+                if (savedEndTime && savedMode) {
+                    const now = Date.now();
+                    isWorking = (savedMode === "work");
+                    
+                    // Update UI colors based on mode
+                    if(!isWorking) {
+                        body.classList.add('break-mode');
+                        statusText.textContent = "Resting eyes... (Resumed)";
+                    } else {
+                        statusText.textContent = "Focusing... (Resumed)";
+                    }
+
+                    if (savedEndTime > now) {
+                        // Timer is still active
+                        endTime = savedEndTime;
+                        remainingTime = Math.ceil((endTime - now) / 1000);
+                        startTimer(true); // true = restoring
+                    } else {
+                        // Time passed while closed
+                        // Logic: Timer finished. We stop and switch to the next phase ready to start.
+                        switchMode(false); // Switch but don't auto-run
+                        statusText.textContent = "Timer finished while away.";
+                        clearTimerState();
+                    }
+                }
             }
         }
 
@@ -330,7 +380,7 @@
             if (isSoundOn) {
                 soundBtn.textContent = "🔊";
                 setCookie("soundPref", "sound", 365);
-                playChime('work'); // Beep to confirm
+                playChime('work');
             } else {
                 soundBtn.textContent = "🔇";
                 setCookie("soundPref", "mute", 365);
@@ -342,19 +392,18 @@
                 alert("This browser does not support desktop notifications");
                 return;
             }
-            
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
-                    notifBtn.textContent = "✅"; // Show success
+                    notifBtn.textContent = "✅";
                     setTimeout(() => notifBtn.textContent = "🔔", 2000);
                     new Notification("Eye20-20-20", { body: "Notifications enabled!" });
                 } else if (permission === "denied") {
-                    alert("Notifications are blocked. You need to enable them in your browser settings for this site.");
+                    alert("Notifications are blocked. Please enable them in browser settings.");
                 }
             });
         }
 
-        // --- TIMER & AUDIO FUNCTIONS ---
+        // --- TIMER & AUDIO LOGIC ---
 
         function playChime(type) {
             if (!isSoundOn) return;
@@ -402,20 +451,19 @@
             setProgress(percent);
         }
 
-        function switchMode() {
+        // switchMode accepts a boolean 'autoStart'
+        // If true, it starts the next timer. If false, it prepares UI but waits.
+        function switchMode(autoStart = true) {
             if (isWorking) {
                 // -> Go to Break
                 isWorking = false;
                 remainingTime = BREAK_TIME;
                 statusText.textContent = "Take a break! Look at an object 20 feet away.";
                 body.classList.add('break-mode'); 
-                playChime('break');
+                if(autoStart) playChime('break');
                 
-                if (Notification.permission === "granted") {
-                    new Notification("Eye20-20-20", { 
-                        body: "Time to rest your eyes! Look away for 20 seconds.",
-                        icon: "https://via.placeholder.com/50" // Placeholder icon
-                    });
+                if (autoStart && Notification.permission === "granted") {
+                    new Notification("Eye20-20-20", { body: "Time to rest your eyes!" });
                 }
             } else {
                 // -> Go to Work
@@ -423,64 +471,72 @@
                 remainingTime = WORK_TIME;
                 statusText.textContent = "Break ended. Focus time.";
                 body.classList.remove('break-mode'); 
-                playChime('work');
+                if(autoStart) playChime('work');
                 
-                if (Notification.permission === "granted") {
+                if (autoStart && Notification.permission === "granted") {
                     new Notification("Eye20-20-20", { body: "Break ended. Back to work!" });
                 }
             }
             
-            // Set new Target Time
-            endTime = Date.now() + (remainingTime * 1000);
-            updateDisplay(remainingTime);
+            if (autoStart) {
+                // Set new Target Time
+                endTime = Date.now() + (remainingTime * 1000);
+                saveTimerState(); // Update cookie with new mode
+                updateDisplay(remainingTime);
+            } else {
+                // Just update display, don't set endTime
+                updateDisplay(remainingTime);
+                resetBtn.click(); // Stop the loop
+            }
         }
 
         function tick() {
             const now = Date.now();
             const delta = endTime - now;
-            
-            // Calculate remaining seconds
             remainingTime = Math.ceil(delta / 1000);
 
             if (remainingTime <= 0) {
-                switchMode();
+                switchMode(true);
             } else {
                 updateDisplay(remainingTime);
             }
         }
 
-        function startTimer() {
+        function startTimer(restoring = false) {
             if (!isRunning) {
-                // Audio Context Resume (Browser Policy)
                 if(audioCtx.state === 'suspended') audioCtx.resume();
                 
-                // Prompt notification if not granted/denied yet
-                if ("Notification" in window && Notification.permission === "default") {
+                if (!restoring && "Notification" in window && Notification.permission === "default") {
                     Notification.requestPermission();
                 }
 
                 isRunning = true;
                 startBtn.style.display = 'none';
                 resetBtn.style.display = 'inline-block';
-                statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
                 
-                // Set the Target Time (Current Time + Remaining Seconds)
-                endTime = Date.now() + (remainingTime * 1000);
+                if(!restoring) {
+                    statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
+                    // Only set endTime if we are NOT restoring from a cookie
+                    endTime = Date.now() + (remainingTime * 1000);
+                }
                 
-                timerInterval = setInterval(tick, 100); // Check more frequently for smoothness
+                saveTimerState(); // Save to cookie that we started
+                timerInterval = setInterval(tick, 100);
             }
         }
 
         function resetTimer() {
             clearInterval(timerInterval);
+            clearTimerState(); // Remove cookie
+            
             isRunning = false;
             isWorking = true;
-            remainingTime = WORK_TIME; // Reset to 20 mins
-            body.classList.remove('break-mode');
+            remainingTime = WORK_TIME; 
             
+            body.classList.remove('break-mode');
             startBtn.style.display = 'inline-block';
             resetBtn.style.display = 'none';
-            startBtn.textContent = "Resume / Start";
+            startBtn.textContent = "Start Focus";
             statusText.textContent = "Timer stopped.";
             
             updateDisplay(remainingTime);
@@ -488,14 +544,14 @@
         }
 
         // --- EVENT LISTENERS ---
-        startBtn.addEventListener('click', startTimer);
+        startBtn.addEventListener('click', () => startTimer(false));
         resetBtn.addEventListener('click', resetTimer);
         soundBtn.addEventListener('click', toggleSound);
         notifBtn.addEventListener('click', requestNotification);
 
         // --- INIT ---
-        loadSoundPreference();
         updateDisplay(remainingTime);
+        loadPreferences(); // Load sound & Restore timer if it was running
 
     </script>
 </body>
