@@ -35,13 +35,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            
-            /* LOCK SCROLLING */
             width: 100%;
             height: 100vh;
             overflow: hidden; 
-            position: fixed; /* Nuclear option to stop iOS rubber-banding */
-            touch-action: none; /* Disables browser gestures like pull-to-refresh */
+            position: fixed;
+            touch-action: none;
         }
 
         /* --- TOP CONTROLS --- */
@@ -96,7 +94,7 @@
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
             color: var(--accent-green);
-            margin-top: -40px; /* Slight visual adjustment */
+            margin-top: -40px;
         }
 
         .subtitle {
@@ -234,6 +232,21 @@
             display: none; 
         }
 
+        /* When shouting, Stop button becomes prominent */
+        .btn.reset.shouting-mode {
+            background-color: var(--accent-red);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(229, 62, 62, 0.4);
+            animation: pulse-btn 1s infinite;
+        }
+
+        @keyframes pulse-btn {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
         .btn.pause {
             background-color: var(--accent-yellow);
             color: #1a202c; 
@@ -266,7 +279,7 @@
             font-weight: 500;
             letter-spacing: 0.5px;
             color: var(--text-color);
-            pointer-events: none; /* Clicks pass through */
+            pointer-events: none;
         }
 
         /* --- MODES --- */
@@ -283,6 +296,12 @@
             box-shadow: 0 4px 15px rgba(236, 201, 75, 0.3);
         }
         body.break-mode .status-text { color: var(--accent-blue); }
+        
+        /* Shouting Status Text */
+        body.shouting .status-text {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
 
     </style>
 </head>
@@ -461,13 +480,38 @@
                 aggroBtn.textContent = "😌";
                 aggroBtn.classList.remove('aggressive-active');
                 setCookie("aggroPref", "off", 365);
-                isShouting = false;
+                stopShouting();
+            }
+        }
+
+        function enterShoutingState() {
+            isShouting = true;
+            body.classList.add('shouting');
+            resetBtn.textContent = "I'M BACK / START";
+            resetBtn.classList.add('shouting-mode');
+            
+            // Loop sound
+            if (isSoundOn) {
+                playChime(isWorking ? 'break' : 'work'); // Play next mode sound
+                lastShoutTime = Date.now();
+            }
+            
+            // Update UI
+            if (isWorking) {
+                 // Work finished, shouting to take break
+                 statusText.textContent = "WORK DONE! PRESS STOP TO START BREAK!";
+            } else {
+                 // Break finished, shouting to start work
+                 statusText.textContent = "BREAK OVER! PRESS STOP TO START WORK!";
             }
         }
 
         function stopShouting() {
             if (isShouting) {
                 isShouting = false;
+                body.classList.remove('shouting');
+                resetBtn.classList.remove('shouting-mode');
+                resetBtn.textContent = "Stop";
                 statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
             }
         }
@@ -484,7 +528,6 @@
             } else {
                 soundBtn.textContent = "🔇";
                 setCookie("soundPref", "mute", 365);
-                isShouting = false; 
             }
         }
 
@@ -597,6 +640,7 @@
             const nextModeIsBreak = isWorking; 
             const chimeType = nextModeIsBreak ? 'break' : 'work';
 
+            // Actual Logic switching
             if (isWorking) {
                 isWorking = false;
                 remainingTime = BREAK_TIME;
@@ -618,15 +662,9 @@
             }
             
             if (autoStart) {
-                if (isAggressive && isSoundOn) {
-                    isShouting = true;
-                    playChime(chimeType);
-                    lastShoutTime = Date.now();
-                    statusText.textContent += " (PRESS BUTTON TO STOP ALARM!)";
-                } else {
-                    playChime(chimeType);
-                }
-
+                // If aggressive mode is ON, we don't switch logic here. 
+                // We handle that in `tick`. This function is for normal switching.
+                playChime(chimeType);
                 endTime = Date.now() + (remainingTime * 1000);
                 saveTimerState(); 
                 updateDisplay(remainingTime);
@@ -641,15 +679,25 @@
             const delta = endTime - now;
             remainingTime = Math.ceil(delta / 1000);
 
+            // AGGRESSIVE LOOPING
             if (isShouting && isSoundOn && isAggressive) {
+                // Keep repeating sound every 2.5s
                 if (now - lastShoutTime > 2500) { 
-                    playChime(isWorking ? 'work' : 'break'); 
+                    // Play the sound of the NEXT mode (what we want them to do)
+                    playChime(isWorking ? 'break' : 'work'); 
                     lastShoutTime = now;
                 }
+                return; // Stop processing timer
             }
 
             if (remainingTime <= 0) {
-                switchMode(true);
+                if (isAggressive) {
+                    // Start Shouting, PAUSE timer logic, Wait for User
+                    enterShoutingState();
+                } else {
+                    // Normal Auto-Switch
+                    switchMode(true);
+                }
             } else {
                 updateDisplay(remainingTime);
             }
@@ -706,7 +754,15 @@
         }
 
         function resetTimer() {
-            stopShouting();
+            // SPECIAL AGGRESSIVE LOGIC: 
+            // If clicking Stop while shouting, we proceed to next mode instead of resetting.
+            if (isShouting) {
+                stopShouting();
+                switchMode(true); // Proceed to break (or work)
+                return;
+            }
+
+            // Normal Reset Logic
             clearInterval(timerInterval);
             clearTimerState();
             
