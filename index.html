@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="author" content="Aryan Giri">
     <title>Eye20-20-20 | Eye Health Tracker</title>
     <style>
         /* --- CSS VARIABLES --- */
@@ -20,7 +21,7 @@
         * {
             box-sizing: border-box;
             transition: all 0.3s ease;
-            -webkit-tap-highlight-color: transparent; /* Removes blue highlight on mobile tap */
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -35,7 +36,7 @@
             justify-content: center;
             min-height: 100vh;
             text-align: center;
-            overflow: hidden; /* Prevent scrolling on mobile */
+            overflow: hidden;
         }
 
         /* --- TOP CONTROLS --- */
@@ -52,7 +53,7 @@
             background: rgba(255,255,255,0.1);
             border: none;
             border-radius: 50%;
-            width: 48px; /* Slightly larger for touch targets */
+            width: 48px;
             height: 48px;
             font-size: 1.4rem;
             cursor: pointer;
@@ -119,7 +120,7 @@
         /* --- TIMER --- */
         .timer-container {
             position: relative;
-            width: 260px; /* Slightly larger for visibility */
+            width: 260px;
             height: 260px;
             margin-bottom: 2rem;
         }
@@ -142,7 +143,7 @@
 
         .circle-progress {
             stroke: var(--accent-green);
-            stroke-dasharray: 785; /* 2 * PI * 125 */
+            stroke-dasharray: 785; 
             stroke-dashoffset: 0;
             transition: stroke-dashoffset 0.1s linear, stroke 0.5s ease;
         }
@@ -186,7 +187,7 @@
             cursor: pointer;
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
-            flex: 1; /* Stretch buttons equally */
+            flex: 1; 
             max-width: 160px;
             -webkit-user-select: none;
             user-select: none;
@@ -197,7 +198,6 @@
             box-shadow: 0 2px 10px rgba(72, 187, 120, 0.4);
         }
 
-        /* Stop Button */
         .btn.reset {
             background-color: transparent;
             border: 2px solid #4a5568;
@@ -206,7 +206,6 @@
             display: none; 
         }
 
-        /* Pause Button */
         .btn.pause {
             background-color: var(--accent-yellow);
             color: #1a202c; 
@@ -228,10 +227,12 @@
         }
 
         .author {
-            margin-top: 1.5rem;
-            font-size: 0.8rem;
-            opacity: 0.5;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.6;
             padding-bottom: 20px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
         }
 
         /* --- BREAK MODE STYLES --- */
@@ -396,11 +397,10 @@
             }
         }
 
-        // --- AUDIO ENGINE (FIXED FOR MOBILE) ---
+        // --- AUDIO ENGINE ---
         function toggleSound() {
             isSoundOn = !isSoundOn;
             
-            // Resume context on user click (Crucial for mobile)
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
@@ -418,7 +418,6 @@
         function playChime(type) {
             if (!isSoundOn) return;
 
-            // Ensure AudioContext is active
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().then(() => playTone(type));
             } else {
@@ -433,7 +432,6 @@
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
-            // Use slightly future time to prevent "pop" on mobile
             const now = audioCtx.currentTime + 0.05; 
 
             if (type === 'break') {
@@ -442,7 +440,6 @@
                 oscillator.frequency.setValueAtTime(440, now);
                 oscillator.frequency.linearRampToValueAtTime(880, now + 0.1);
                 
-                // Simple envelope: Attack -> Sustain -> Release
                 gainNode.gain.setValueAtTime(0, now);
                 gainNode.gain.linearRampToValueAtTime(0.5, now + 0.05);
                 gainNode.gain.linearRampToValueAtTime(0, now + 1.0);
@@ -460,7 +457,6 @@
             oscillator.start(now);
             oscillator.stop(now + 1.1);
 
-            // Cleanup for garbage collection
             setTimeout(() => {
                 oscillator.disconnect();
                 gainNode.disconnect();
@@ -572,7 +568,6 @@
 
         function startTimer(restoring = false) {
             if (!isRunning) {
-                // Ensure audio context is ready on first touch
                 if(audioCtx.state === 'suspended') audioCtx.resume();
                 
                 if (!restoring && "Notification" in window && Notification.permission === "default") {
