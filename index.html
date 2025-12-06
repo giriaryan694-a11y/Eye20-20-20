@@ -13,7 +13,7 @@
             --accent-green: #48bb78;   
             --accent-blue: #4299e1;
             --accent-yellow: #ecc94b; 
-            --accent-red: #e53e3e; /* For Aggressive Mode */
+            --accent-red: #e53e3e; /* Aggressive Mode Color */
             --eye-white: #f7fafc;
             --pupil-color: #2d3748;
             --warning-color: #ed8936;
@@ -245,10 +245,11 @@
         .author {
             margin-top: 2rem;
             font-size: 0.9rem;
-            opacity: 0.6;
+            opacity: 0.7;
             padding-bottom: 20px;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: 0.5px;
+            color: var(--text-color);
         }
 
         /* --- MODES --- */
@@ -453,6 +454,7 @@
         function stopShouting() {
             if (isShouting) {
                 isShouting = false;
+                // Revert text to normal
                 statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
             }
         }
@@ -629,7 +631,6 @@
             remainingTime = Math.ceil(delta / 1000);
 
             // -- SHOUTING LOGIC (Aggressive Mode) --
-            // We check this in the loop so it persists even in background
             if (isShouting && isSoundOn && isAggressive) {
                 if (now - lastShoutTime > 2500) { // Shout every 2.5 seconds
                     playChime(isWorking ? 'work' : 'break'); // Repeat current mode sound
