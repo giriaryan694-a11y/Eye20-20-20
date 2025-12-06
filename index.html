@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Eye20-20-20 | Eye Health Tracker</title>
     <style>
         /* --- CSS VARIABLES --- */
@@ -11,7 +11,7 @@
             --text-color: #e2e8f0;     
             --accent-green: #48bb78;   
             --accent-blue: #4299e1;
-            --accent-yellow: #ecc94b; /* For Pause */
+            --accent-yellow: #ecc94b; 
             --eye-white: #f7fafc;
             --pupil-color: #2d3748;
             --warning-color: #ed8936;
@@ -20,6 +20,7 @@
         * {
             box-sizing: border-box;
             transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent; /* Removes blue highlight on mobile tap */
         }
 
         body {
@@ -34,6 +35,7 @@
             justify-content: center;
             min-height: 100vh;
             text-align: center;
+            overflow: hidden; /* Prevent scrolling on mobile */
         }
 
         /* --- TOP CONTROLS --- */
@@ -42,16 +44,17 @@
             top: 20px;
             right: 20px;
             display: flex;
-            gap: 10px;
+            gap: 15px;
+            z-index: 100;
         }
 
         .icon-btn {
             background: rgba(255,255,255,0.1);
             border: none;
             border-radius: 50%;
-            width: 45px;
-            height: 45px;
-            font-size: 1.2rem;
+            width: 48px; /* Slightly larger for touch targets */
+            height: 48px;
+            font-size: 1.4rem;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -60,21 +63,21 @@
             color: var(--text-color);
         }
 
-        .icon-btn:hover {
-            background: rgba(255,255,255,0.2);
-            transform: scale(1.1);
+        .icon-btn:active {
+            background: rgba(255,255,255,0.3);
+            transform: scale(0.95);
         }
 
         /* --- HEADER --- */
         h1 {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
             color: var(--accent-green);
         }
 
         .subtitle {
-            font-size: 1rem;
+            font-size: 0.9rem;
             opacity: 0.7;
             margin-bottom: 2rem;
         }
@@ -116,8 +119,8 @@
         /* --- TIMER --- */
         .timer-container {
             position: relative;
-            width: 250px;
-            height: 250px;
+            width: 260px; /* Slightly larger for visibility */
+            height: 260px;
             margin-bottom: 2rem;
         }
 
@@ -129,7 +132,7 @@
 
         circle {
             fill: none;
-            stroke-width: 8;
+            stroke-width: 10;
             stroke-linecap: round;
         }
 
@@ -139,7 +142,7 @@
 
         .circle-progress {
             stroke: var(--accent-green);
-            stroke-dasharray: 754; 
+            stroke-dasharray: 785; /* 2 * PI * 125 */
             stroke-dashoffset: 0;
             transition: stroke-dashoffset 0.1s linear, stroke 0.5s ease;
         }
@@ -149,50 +152,52 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 3rem;
+            font-size: 3.5rem;
             font-weight: bold;
             font-variant-numeric: tabular-nums;
         }
 
         .status-text {
-            font-size: 1.2rem;
-            font-weight: 300;
+            font-size: 1.1rem;
+            font-weight: 400;
             color: var(--accent-green);
             min-height: 1.5em;
             padding: 0 20px;
+            margin-bottom: 1rem;
         }
 
         /* --- BUTTONS --- */
         .btn-container {
-            margin-top: 20px;
+            margin-top: 10px;
             display: flex;
             gap: 15px;
             justify-content: center;
+            width: 100%;
+            padding: 0 20px;
         }
 
         .btn {
             background-color: var(--accent-green);
             color: var(--bg-color);
             border: none;
-            padding: 15px 30px;
+            padding: 16px 0;
             font-size: 1.1rem;
             border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
-            min-width: 140px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+            flex: 1; /* Stretch buttons equally */
+            max-width: 160px;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .btn:active {
-            transform: translateY(1px);
+            transform: translateY(2px);
+            box-shadow: 0 2px 10px rgba(72, 187, 120, 0.4);
         }
 
-        /* Stop Button (Ghost style) */
+        /* Stop Button */
         .btn.reset {
             background-color: transparent;
             border: 2px solid #4a5568;
@@ -200,38 +205,33 @@
             box-shadow: none;
             display: none; 
         }
-        .btn.reset:hover {
-            border-color: #cbd5e0;
-            color: #cbd5e0;
-        }
 
-        /* Pause Button (Yellow style) */
+        /* Pause Button */
         .btn.pause {
             background-color: var(--accent-yellow);
-            color: #1a202c; /* Dark text for contrast */
+            color: #1a202c; 
             box-shadow: 0 4px 15px rgba(236, 201, 75, 0.3);
             display: none;
-        }
-        .btn.pause:hover {
-            box-shadow: 0 6px 20px rgba(236, 201, 75, 0.4);
         }
 
         /* --- FOOTER & WARNING --- */
         .warning-msg {
-            margin-top: 30px;
-            font-size: 0.85rem;
+            margin-top: 25px;
+            font-size: 0.8rem;
             color: var(--warning-color);
             background: rgba(237, 137, 54, 0.1);
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 8px;
+            width: 90%;
             max-width: 400px;
             line-height: 1.4;
         }
 
         .author {
             margin-top: 1.5rem;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             opacity: 0.5;
+            padding-bottom: 20px;
         }
 
         /* --- BREAK MODE STYLES --- */
@@ -244,7 +244,6 @@
             box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
         }
         body.break-mode .btn.pause {
-            /* Keep pause yellow, or make it a lighter blue? Let's keep yellow for "Warning/Pause" semantic */
             background-color: var(--accent-yellow); 
             box-shadow: 0 4px 15px rgba(236, 201, 75, 0.3);
         }
@@ -268,9 +267,9 @@
     </div>
 
     <div class="timer-container">
-        <svg>
-            <circle class="circle-bg" cx="125" cy="125" r="120"></circle>
-            <circle class="circle-progress" cx="125" cy="125" r="120" id="progressRing"></circle>
+        <svg viewBox="0 0 260 260">
+            <circle class="circle-bg" cx="130" cy="130" r="125"></circle>
+            <circle class="circle-progress" cx="130" cy="130" r="125" id="progressRing"></circle>
         </svg>
         <div class="time-display" id="timeDisplay">20:00</div>
     </div>
@@ -306,7 +305,7 @@
         const body = document.body;
 
         // Progress Ring Calculation
-        const radius = 120;
+        const radius = 125;
         const circumference = 2 * Math.PI * radius;
         progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
 
@@ -317,12 +316,12 @@
         let isPaused = false;
         let isSoundOn = true;
         
-        // Time Tracking
         let endTime = 0;
         let remainingTime = WORK_TIME;
 
-        // --- AUDIO CONTEXT ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // --- AUDIO CONTEXT (Mobile Optimized) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
 
         // --- COOKIE HELPERS ---
         function setCookie(cname, cvalue, exdays) {
@@ -343,33 +342,8 @@
             return "";
         }
 
-        // --- STATE MANAGEMENT (COOKIES) ---
-        function saveTimerState() {
-            // State: "stopped", "running", "paused"
-            let state = "stopped";
-            if (isRunning) state = "running";
-            if (isPaused) state = "paused";
-
-            setCookie("eye_state", state, 1);
-            setCookie("eye_mode", isWorking ? "work" : "break", 1);
-            
-            if (state === "running") {
-                setCookie("eye_endTime", endTime, 1);
-            } else if (state === "paused") {
-                // If paused, endtime is irrelevant, we save remainingSeconds
-                setCookie("eye_remaining", remainingTime, 1);
-            }
-        }
-
-        function clearTimerState() {
-            setCookie("eye_state", "stopped", 1);
-            setCookie("eye_endTime", "", -1);
-            setCookie("eye_remaining", "", -1);
-        }
-
         // --- PREFERENCES & RESTORE ---
         function loadPreferences() {
-            // Sound
             let soundPref = getCookie("soundPref");
             if (soundPref === "mute") {
                 isSoundOn = false;
@@ -379,14 +353,12 @@
                 soundBtn.textContent = "🔊";
             }
 
-            // Restore Timer Logic
             const savedState = getCookie("eye_state");
             const savedMode = getCookie("eye_mode");
             
             if (savedState === "running" || savedState === "paused") {
                 isWorking = (savedMode === "work");
                 
-                // Set Colors/Theme
                 if(!isWorking) {
                     body.classList.add('break-mode');
                     statusText.textContent = "Resting eyes... (Resumed)";
@@ -401,9 +373,8 @@
                     if (savedEndTime > now) {
                         endTime = savedEndTime;
                         remainingTime = Math.ceil((endTime - now) / 1000);
-                        startTimer(true); // Restore as running
+                        startTimer(true);
                     } else {
-                        // Timer expired while closed
                         switchMode(false); 
                         statusText.textContent = "Timer finished while away.";
                         clearTimerState();
@@ -412,7 +383,6 @@
                     const savedRemaining = parseInt(getCookie("eye_remaining"));
                     if (savedRemaining) {
                         remainingTime = savedRemaining;
-                        // Restore UI to Paused State
                         startBtn.style.display = 'none';
                         pauseBtn.style.display = 'inline-block';
                         resetBtn.style.display = 'inline-block';
@@ -426,9 +396,15 @@
             }
         }
 
-        // --- AUDIO & UTILS ---
+        // --- AUDIO ENGINE (FIXED FOR MOBILE) ---
         function toggleSound() {
             isSoundOn = !isSoundOn;
+            
+            // Resume context on user click (Crucial for mobile)
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
             if (isSoundOn) {
                 soundBtn.textContent = "🔊";
                 setCookie("soundPref", "sound", 365);
@@ -439,48 +415,59 @@
             }
         }
 
-        function requestNotification() {
-            if (!("Notification" in window)) {
-                alert("Browser does not support notifications");
-                return;
-            }
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    notifBtn.textContent = "✅";
-                    setTimeout(() => notifBtn.textContent = "🔔", 2000);
-                    new Notification("Eye20-20-20", { body: "Notifications enabled!" });
-                } else if (permission === "denied") {
-                    alert("Notifications are blocked in browser settings.");
-                }
-            });
-        }
-
         function playChime(type) {
             if (!isSoundOn) return;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
+
+            // Ensure AudioContext is active
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => playTone(type));
+            } else {
+                playTone(type);
+            }
+        }
+
+        function playTone(type) {
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
+
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
+            // Use slightly future time to prevent "pop" on mobile
+            const now = audioCtx.currentTime + 0.05; 
+
             if (type === 'break') {
+                // Break sound (High pitch)
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
-                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+                oscillator.frequency.setValueAtTime(440, now);
+                oscillator.frequency.linearRampToValueAtTime(880, now + 0.1);
+                
+                // Simple envelope: Attack -> Sustain -> Release
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.5, now + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, now + 1.0);
             } else {
+                // Work sound (Low pitch)
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(660, audioCtx.currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(330, audioCtx.currentTime + 0.1);
-                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+                oscillator.frequency.setValueAtTime(660, now);
+                oscillator.frequency.linearRampToValueAtTime(330, now + 0.1);
+                
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.5, now + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, now + 1.0);
             }
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 1);
+
+            oscillator.start(now);
+            oscillator.stop(now + 1.1);
+
+            // Cleanup for garbage collection
+            setTimeout(() => {
+                oscillator.disconnect();
+                gainNode.disconnect();
+            }, 1200);
         }
 
+        // --- UTILS ---
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60);
             const s = seconds % 60;
@@ -499,14 +486,50 @@
             setProgress(percent);
         }
 
-        // --- CORE TIMER LOGIC ---
+        function requestNotification() {
+            if (!("Notification" in window)) {
+                alert("Browser does not support notifications");
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    notifBtn.textContent = "✅";
+                    setTimeout(() => notifBtn.textContent = "🔔", 2000);
+                    new Notification("Eye20-20-20", { body: "Notifications enabled!" });
+                } else if (permission === "denied") {
+                    alert("Notifications are blocked in browser settings.");
+                }
+            });
+        }
 
+        // --- STATE MANAGEMENT ---
+        function saveTimerState() {
+            let state = "stopped";
+            if (isRunning) state = "running";
+            if (isPaused) state = "paused";
+
+            setCookie("eye_state", state, 1);
+            setCookie("eye_mode", isWorking ? "work" : "break", 1);
+            
+            if (state === "running") {
+                setCookie("eye_endTime", endTime, 1);
+            } else if (state === "paused") {
+                setCookie("eye_remaining", remainingTime, 1);
+            }
+        }
+
+        function clearTimerState() {
+            setCookie("eye_state", "stopped", 1);
+            setCookie("eye_endTime", "", -1);
+            setCookie("eye_remaining", "", -1);
+        }
+
+        // --- CORE LOGIC ---
         function switchMode(autoStart = true) {
             if (isWorking) {
-                // -> Break
                 isWorking = false;
                 remainingTime = BREAK_TIME;
-                statusText.textContent = "Take a break! Look at an object 20 feet away.";
+                statusText.textContent = "Take a break! Look 20 feet away.";
                 body.classList.add('break-mode'); 
                 if(autoStart) playChime('break');
                 
@@ -514,7 +537,6 @@
                     new Notification("Eye20-20-20", { body: "Time to rest your eyes!" });
                 }
             } else {
-                // -> Work
                 isWorking = true;
                 remainingTime = WORK_TIME;
                 statusText.textContent = "Break ended. Focus time.";
@@ -532,7 +554,7 @@
                 updateDisplay(remainingTime);
             } else {
                 updateDisplay(remainingTime);
-                resetTimer(); // Stop if not auto-starting
+                resetTimer();
             }
         }
 
@@ -550,10 +572,9 @@
 
         function startTimer(restoring = false) {
             if (!isRunning) {
-                // Audio Resume
+                // Ensure audio context is ready on first touch
                 if(audioCtx.state === 'suspended') audioCtx.resume();
                 
-                // Notifications check
                 if (!restoring && "Notification" in window && Notification.permission === "default") {
                     Notification.requestPermission();
                 }
@@ -561,19 +582,16 @@
                 isRunning = true;
                 isPaused = false;
                 
-                // UI Updates
                 startBtn.style.display = 'none';
                 pauseBtn.style.display = 'inline-block';
-                pauseBtn.textContent = "Pause"; // Ensure it says Pause
+                pauseBtn.textContent = "Pause";
                 resetBtn.style.display = 'inline-block';
                 
                 if(!restoring && !isPaused) {
                     statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
                 }
                 
-                // IMPORTANT: Calculate End Time based on remaining seconds
                 endTime = Date.now() + (remainingTime * 1000);
-                
                 saveTimerState();
                 timerInterval = setInterval(tick, 100);
             }
@@ -581,11 +599,9 @@
 
         function togglePause() {
             if (isPaused) {
-                // Resume
-                startTimer(true); // Reuse start logic
+                startTimer(true);
                 statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
             } else {
-                // Pause
                 clearInterval(timerInterval);
                 isRunning = false;
                 isPaused = true;
@@ -593,13 +609,12 @@
                 pauseBtn.textContent = "Resume";
                 statusText.textContent = "Timer Paused";
                 
-                // Calculate exact remaining time at moment of pause
                 const now = Date.now();
                 const delta = endTime - now;
                 remainingTime = Math.max(0, Math.ceil(delta / 1000));
                 
                 updateDisplay(remainingTime);
-                saveTimerState(); // Save "paused" state and "remaining" time
+                saveTimerState();
             }
         }
 
@@ -620,7 +635,7 @@
             
             startBtn.textContent = "Start Focus";
             statusText.textContent = "Timer stopped.";
-            pauseBtn.textContent = "Pause"; // Reset text
+            pauseBtn.textContent = "Pause";
             
             updateDisplay(remainingTime);
             progressRing.style.strokeDashoffset = 0;
@@ -635,7 +650,7 @@
 
         // --- INIT ---
         updateDisplay(remainingTime);
-        loadPreferences(); 
+        loadPreferences();
 
     </script>
 </body>
