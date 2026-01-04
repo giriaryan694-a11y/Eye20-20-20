@@ -8,9 +8,9 @@
     <style>
         /* --- CSS VARIABLES --- */
         :root {
-            --bg-color: #1a202c;       
-            --text-color: #e2e8f0;     
-            --accent-green: #48bb78;   
+            --bg-color: #1a202c;        
+            --text-color: #e2e8f0;      
+            --accent-green: #48bb78;    
             --accent-blue: #4299e1;
             --accent-yellow: #ecc94b; 
             --accent-red: #e53e3e;
@@ -24,10 +24,10 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* --- SCROLL LOCKING & LAYOUT --- */
+        /* --- LAYOUT --- */
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px 0; /* Added padding to prevent cutting off on edges */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -36,10 +36,11 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            height: 100vh;
-            overflow: hidden; 
-            position: fixed;
-            touch-action: none;
+            min-height: 100vh; /* Fallback */
+            min-height: 100dvh; /* Dynamic viewport height for mobile */
+            overflow-y: auto; /* FIXED: Allow scrolling if screen is small */
+            overflow-x: hidden;
+            /* touch-action: none; REMOVED: Caused accessibility issues on mobile */
         }
 
         /* --- TOP CONTROLS --- */
@@ -94,13 +95,15 @@
             margin-bottom: 0.5rem;
             letter-spacing: 1px;
             color: var(--accent-green);
-            margin-top: -40px;
+            margin-top: 40px; /* Adjusted for scroll layout */
+            text-align: center;
         }
 
         .subtitle {
             font-size: 0.9rem;
             opacity: 0.7;
             margin-bottom: 1.5rem;
+            text-align: center;
         }
 
         /* --- EYE ANIMATION --- */
@@ -146,6 +149,7 @@
             height: 260px;
             margin-bottom: 1.5rem;
             contain: layout style paint; 
+            flex-shrink: 0; /* Prevent shrinking on small screens */
         }
 
         svg {
@@ -190,6 +194,7 @@
             min-height: 1.5em;
             padding: 0 20px;
             margin-bottom: 1rem;
+            text-align: center;
         }
 
         /* --- BUTTONS --- */
@@ -200,20 +205,22 @@
             justify-content: center;
             width: 100%;
             padding: 0 20px;
+            flex-wrap: wrap; /* FIXED: Allow buttons to wrap on very small screens */
         }
 
         .btn {
             background-color: var(--accent-green);
             color: var(--bg-color);
             border: none;
-            padding: 16px 0;
+            padding: 16px 24px;
             font-size: 1.1rem;
             border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
             flex: 1; 
-            max-width: 160px;
+            min-width: 140px; /* FIXED: Ensure enough width for text */
+            max-width: 200px; /* Increased to fit "I'M BACK" text */
             user-select: none;
             -webkit-user-select: none;
             transition: transform 0.1s, box-shadow 0.2s;
@@ -257,6 +264,7 @@
         /* --- WARNING --- */
         .warning-msg {
             margin-top: 20px;
+            margin-bottom: 40px; /* Space for footer */
             font-size: 0.8rem;
             color: var(--warning-color);
             background: rgba(237, 137, 54, 0.1);
@@ -265,6 +273,7 @@
             width: 90%;
             max-width: 400px;
             line-height: 1.4;
+            text-align: center;
         }
 
         /* --- FIXED FOOTER --- */
@@ -346,7 +355,7 @@
     <script>
         // --- CONSTANTS ---
         const WORK_TIME = 20 * 60; 
-        const BREAK_TIME = 20;     
+        const BREAK_TIME = 20;      
         
         // --- DOM ELEMENTS ---
         const startBtn = document.getElementById('startBtn');
@@ -381,8 +390,15 @@
         let lastRenderedTimeStr = ""; 
 
         // --- AUDIO CONTEXT ---
+        // FIXED: Safe AudioContext creation
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioCtx = new AudioContext();
+        let audioCtx;
+        
+        try {
+            audioCtx = new AudioContext();
+        } catch(e) {
+            console.warn("Web Audio API not supported in this browser");
+        }
 
         // --- COOKIE HELPERS ---
         function setCookie(cname, cvalue, exdays) {
@@ -440,11 +456,14 @@
                 }
 
                 if (savedState === "running") {
-                    const savedEndTime = parseInt(getCookie("eye_endTime"));
+                    // FIXED: Safer parseInt handling
+                    const savedEndTime = parseInt(getCookie("eye_endTime")) || 0;
                     const now = Date.now();
+                    
                     if (savedEndTime > now) {
                         endTime = savedEndTime;
                         remainingTime = Math.ceil((endTime - now) / 1000);
+                        // FIXED: Pass true to indicate we are restoring an existing end time
                         startTimer(true);
                     } else {
                         switchMode(false); 
@@ -452,7 +471,8 @@
                         clearTimerState();
                     }
                 } else if (savedState === "paused") {
-                    const savedRemaining = parseInt(getCookie("eye_remaining"));
+                    // FIXED: Safer parseInt handling
+                    const savedRemaining = parseInt(getCookie("eye_remaining")) || 0;
                     if (savedRemaining) {
                         remainingTime = savedRemaining;
                         startBtn.style.display = 'none';
@@ -498,10 +518,8 @@
             
             // Update UI
             if (isWorking) {
-                 // Work finished, shouting to take break
                  statusText.textContent = "WORK DONE! PRESS STOP TO START BREAK!";
             } else {
-                 // Break finished, shouting to start work
                  statusText.textContent = "BREAK OVER! PRESS STOP TO START WORK!";
             }
         }
@@ -519,7 +537,7 @@
         // --- AUDIO ENGINE ---
         function toggleSound() {
             isSoundOn = !isSoundOn;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
             if (isSoundOn) {
                 soundBtn.textContent = "🔊";
@@ -532,7 +550,8 @@
         }
 
         function playChime(type) {
-            if (!isSoundOn) return;
+            if (!isSoundOn || !audioCtx) return;
+            
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().then(() => playTone(type));
             } else {
@@ -662,8 +681,6 @@
             }
             
             if (autoStart) {
-                // If aggressive mode is ON, we don't switch logic here. 
-                // We handle that in `tick`. This function is for normal switching.
                 playChime(chimeType);
                 endTime = Date.now() + (remainingTime * 1000);
                 saveTimerState(); 
@@ -681,9 +698,7 @@
 
             // AGGRESSIVE LOOPING
             if (isShouting && isSoundOn && isAggressive) {
-                // Keep repeating sound every 2.5s
                 if (now - lastShoutTime > 2500) { 
-                    // Play the sound of the NEXT mode (what we want them to do)
                     playChime(isWorking ? 'break' : 'work'); 
                     lastShoutTime = now;
                 }
@@ -692,10 +707,8 @@
 
             if (remainingTime <= 0) {
                 if (isAggressive) {
-                    // Start Shouting, PAUSE timer logic, Wait for User
                     enterShoutingState();
                 } else {
-                    // Normal Auto-Switch
                     switchMode(true);
                 }
             } else {
@@ -705,7 +718,10 @@
 
         function startTimer(restoring = false) {
             if (!isRunning) {
-                if(audioCtx.state === 'suspended') audioCtx.resume();
+                // FIXED: Ensure AudioContext resumes on click for mobile/chrome
+                if(audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
                 
                 if (!restoring && "Notification" in window && Notification.permission === "default") {
                     Notification.requestPermission();
@@ -717,16 +733,21 @@
                 
                 startBtn.style.display = 'none';
                 pauseBtn.style.display = 'inline-block';
+                pauseBtn.style.display = 'inline-block';
                 pauseBtn.textContent = "Pause";
                 resetBtn.style.display = 'inline-block';
                 
                 if(!restoring) {
                     statusText.textContent = isWorking ? "Focusing..." : "Resting eyes...";
+                    // FIXED: Logic flaw where refreshing page extended the timer
+                    endTime = Date.now() + (remainingTime * 1000);
                 }
+                // If restoring, we trust that endTime was set correctly in loadPreferences
                 
-                endTime = Date.now() + (remainingTime * 1000);
                 saveTimerState();
                 
+                // Clear any existing interval to prevent duplicates
+                if (timerInterval) clearInterval(timerInterval);
                 timerInterval = setInterval(tick, 200);
             }
         }
@@ -735,7 +756,9 @@
             stopShouting();
 
             if (isPaused) {
-                startTimer(true);
+                // When resuming from pause, we are NOT restoring an old endTime, 
+                // we are calculating a new one based on remaining time.
+                startTimer(false); 
             } else {
                 clearInterval(timerInterval);
                 isRunning = false;
@@ -754,15 +777,12 @@
         }
 
         function resetTimer() {
-            // SPECIAL AGGRESSIVE LOGIC: 
-            // If clicking Stop while shouting, we proceed to next mode instead of resetting.
             if (isShouting) {
                 stopShouting();
                 switchMode(true); // Proceed to break (or work)
                 return;
             }
 
-            // Normal Reset Logic
             clearInterval(timerInterval);
             clearTimerState();
             
@@ -786,6 +806,7 @@
         }
 
         // --- EVENT LISTENERS ---
+        // startTimer(false) means this is a fresh start, not a page reload restore
         startBtn.addEventListener('click', () => startTimer(false));
         pauseBtn.addEventListener('click', togglePause);
         resetBtn.addEventListener('click', resetTimer);
